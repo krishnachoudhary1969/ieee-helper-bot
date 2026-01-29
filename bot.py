@@ -102,12 +102,24 @@ async def anti_spam(update: Update, context: ContextTypes.DEFAULT_TYPE):
     last_msg[uid] = now
 
 
-# ---------- JOB ----------
-async def daily_reminder(context: ContextTypes.DEFAULT_TYPE):
+async def reminder(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Admin check
+    if update.effective_user.id not in ADMIN_IDS:
+        return
+
+    text = " ".join(context.args)
+    if not text:
+        await update.message.reply_text(
+            "Usage: /reminder <message>"
+        )
+        return
+
     await context.bot.send_message(
         chat_id=CHANNEL_ID,
-        text="📢 IEEE Reminder: Stay tuned for upcoming events!"
+        text=f"📢 *IEEE Reminder*\n{text}",
+        parse_mode="Markdown"
     )
+
 
 # ---------- MAIN ----------
 def main():
@@ -123,7 +135,8 @@ def main():
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, anti_spam))
 
-    app.job_queue.run_daily(daily_reminder, time=time(hour=9))
+    app.add_handler(CommandHandler("reminder", reminder))
+
 
     app.run_polling()
 
