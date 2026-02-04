@@ -2,6 +2,7 @@ import os
 import sqlite3
 import time as t
 from collections import defaultdict
+from openpyxl import Workbook
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -97,11 +98,21 @@ async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================= HELP ==================
 async def help_cmd(update, context):
-    await delete_cmd(update)
+    if is_admin(update):
+        text = (
+            "Admin Commands:\n"
+            "/rsvp_on\n/attendance_on\n/export\n/stats\n"
+            "/certificate\n/remind\n/feedback_on"
+        )
+    else:
+        text = (
+            "User Commands:\n"
+            "/rules\n/events"
+        )
 
     await context.bot.send_message(
         chat_id=update.effective_user.id,
-        text="Use /rules /events or contact admins."
+        text=text
     )
 # =========================================
 
@@ -214,6 +225,85 @@ async def monitor(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================================
 
 
+# =========================================
+async def export_attendance(update, context):
+    if not is_admin(update):
+        return
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["User ID", "Name", "Timestamp"])
+
+    rows = cur.execute("SELECT * FROM attendance").fetchall()
+
+    for r in rows:
+        ws.append(r)
+
+    file_name = "attendance.xlsx"
+    wb.save(file_name)
+
+    await context.bot.send_document(
+        chat_id=update.effective_user.id,
+        document=open(file_name, "rb")
+    )
+# =========================================
+
+
+# =========================================
+async def stats(update, context):
+    if not is_admin(update):
+        return
+
+    total = cur.execute("SELECT COUNT(*) FROM attendance").fetchone()[0]
+    joins = cur.execute("SELECT COUNT(*) FROM joins").fetchone()[0]
+
+    await context.bot.send_message(
+        chat_id=update.effective_user.id,
+        text=f"📊 Dashboard\n\nJoins: {joins}\nAttendance: {total}"
+    )
+# =========================================
+
+
+# =========================================
+async def certificate(update, context):
+    if not is_admin(update):
+        return
+
+    name = " ".join(context.args)
+    if not name:
+        return
+
+    file = f"{name}_certificate.txt"
+
+    with open(file, "w") as f:
+        f.write(
+            f"Certificate of Participation\n\n"
+            f"This certifies that {name}\n"
+            f"participated in IEEE SB GEHU Event."
+        )
+
+    await context.bot.send_document(
+        chat_id=update.effective_user.id,
+        document=open(file, "rb")
+    )
+# =========================================
+
+
+# =========================================
+async def remind(update, context):
+    if not is_admin(update):
+        return
+
+    delay = int(context.args[0])  # seconds
+    msg = " ".join(context.args[1:])
+
+    context.job_queue.run_once(
+        lambda ctx: ctx.bot.send_message(chat_id=CHANNEL_ID, text=msg),
+        delay
+    )
+# =========================================
+
+
 # ================= MAIN ==================
 def main():
     app = Application.builder().token(TOKEN).build()
@@ -227,10 +317,16 @@ def main():
     app.add_handler(CommandHandler("feedback_off", feedback_off))
     app.add_handler(CommandHandler("attendance_on", attendance_on))
     app.add_handler(CommandHandler("attendance_off", attendance_off))
+    app.add_handler(CommandHandler("export", export_attendance))
+    app.add_handler(CommandHandler("stats", stats))
+    app.add_handler(CommandHandler("certificate", certificate))
+    app.add_handler(CommandHandler("remind", remind))
+
+
 
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, monitor))
-
+    
     app.run_polling()
 
 
