@@ -41,12 +41,35 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "IEEE SB GEHU Rules:\n"
+    rules_text = (
+        "📜 *IEEE SB GEHU Rules*\n"
         "1. Be respectful\n"
         "2. No spam\n"
         "3. IEEE-related discussions only"
     )
+
+    # If command used in group → DM user instead
+    if update.effective_chat.type in ["group", "supergroup"]:
+        try:
+            await context.bot.send_message(
+                chat_id=update.effective_user.id,
+                text=rules_text,
+                parse_mode="Markdown"
+            )
+            await update.message.reply_text(
+                "📩 Rules sent to your DM!"
+            )
+        except:
+            await update.message.reply_text(
+                "Please start the bot in DM first: @IEEE_Helper_bot"
+            )
+    else:
+        # Private chat → send normally
+        await update.message.reply_text(
+            rules_text,
+            parse_mode="Markdown"
+        )
+
 
 async def events(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
