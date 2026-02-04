@@ -327,7 +327,8 @@ def main():
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, monitor))
     
-    app.run_polling()
+    app.run_polling(drop_pending_updates=True)
+
 
 
 if __name__ == "__main__":
