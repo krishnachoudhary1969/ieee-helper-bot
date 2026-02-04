@@ -40,6 +40,9 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/poll - Create a poll"
     )
 
+# cooldown storage
+rules_cooldown = {}
+
 async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rules_text = (
         "📜 *IEEE SB GEHU Rules*\n"
@@ -48,11 +51,18 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "3. IEEE-related discussions only"
     )
 
+    user_id = update.effective_user.id
+    now = t.time()
+    # 30 sec cooldown per user
+    if user_id in rules_cooldown and now - rules_cooldown[user_id] < 30:
+        return
+    rules_cooldown[user_id] = now
+
     # If command used in group → DM user instead
     if update.effective_chat.type in ["group", "supergroup"]:
         try:
             await context.bot.send_message(
-                chat_id=update.effective_user.id,
+                chat_id=user_id,
                 text=rules_text,
                 parse_mode="Markdown"
             )
@@ -60,11 +70,9 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "📩 Rules sent to your DM!"
             )
         except:
-            await update.message.reply_text(
-                "Please start the bot in DM first: @IEEE_Helper_bot"
-            )
+            pass
     else:
-        # Private chat → send normally
+        # Private chat
         await update.message.reply_text(
             rules_text,
             parse_mode="Markdown"
